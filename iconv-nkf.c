@@ -89,16 +89,22 @@ typedef struct {
 
 static iconv_nkf_encoding_options_struct
 nkf_encoding_options_by_name[] = {
-  {"UTF-8",		"-W", "-w"},
-  {"UTF8",		"-W", "-w"},
-  {"ISO-2022-JP",	"-J", "-j"},
-  {"ISO2022JP",		"-J", "-j"},
-  {"EUC-JP",		"-E", "-e"},
-  {"EUCJP",		"-E", "-e"},
-  {"Shift_JIS",		"-S", "-s"},
-  {"Shift-JIS",		"-S", "-s"},
-  {"SJIS",		"-S", "-s"},
-  {NULL,		NULL, NULL}
+  {"UTF-8",		"-W",			"-w"},
+  {"UTF8",		"-W",			"-w"},
+  {"UTF-8-MAC",		"--ic=UTF-8-MAC",	NULL},
+  {"UTF8-MAC",		"--ic=UTF-8-MAC",	NULL},
+  {"ISO-2022-JP",	"-J",			"-j"},
+  {"ISO2022JP",		"-J",			"-j"},
+  {"EUC-JP",		"-E",			"-e"},
+  {"EUCJP",		"-E",			"-e"},
+  {"EUC-JP-MS",		"--ic=EUC-JP-MS",	"--oc=EUCJP-MS"},
+  {"EUC-JP-NKF",	"--ic=EUC-JP-NKF",	"--oc=EUCJP-NKF"},
+  {"EUCJP-NKF",		"--ic=EUC-JP-NKF",	"--oc=EUCJP-NKF"},
+  {"Shift_JIS",		"-S",			"-s"},
+  {"Shift-JIS",		"-S",			"-s"},
+  {"SJIS",		"-S",			"-s"},
+  {"CP932",		"--ic=CP932",		"--oc=CP932"},
+  {NULL,		NULL,			NULL}
 };
 
 static iconv_nkf_encoding_options_struct *
@@ -132,13 +138,13 @@ iconv_nkf_open(
   cd->iconv_cd = (iconv_real_t)-1;
 
   nkf_encoding_options = iconv_nkf_encoding_options(from);
-  if (!nkf_encoding_options) {
+  if (!nkf_encoding_options || !nkf_encoding_options->in_option) {
     goto err;
   }
   cd->nkf_in_option = nkf_encoding_options->in_option;
 
   nkf_encoding_options = iconv_nkf_encoding_options(to);
-  if (!nkf_encoding_options) {
+  if (!nkf_encoding_options || !nkf_encoding_options->out_option) {
     goto err;
   }
   cd->nkf_out_option = nkf_encoding_options->out_option;
