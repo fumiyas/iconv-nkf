@@ -226,7 +226,6 @@ size_t iconv_nkf(
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
   iconv_nkf_outbytesleft = *outbytesleft;
-  *iconv_nkf_outptr = '\0'; /* FIXME */
   iconv_nkf_inpending = 0;
   iconv_nkf_guess_flag = 0;
   iconv_nkf_errno = 0;
@@ -240,8 +239,6 @@ size_t iconv_nkf(
 
   DEBUG("in consumed:  %ld\n", iconv_nkf_inptr - iconv_nkf_inbuf);
   DEBUG("out consumed: %ld\n", iconv_nkf_outptr - iconv_nkf_outbuf);
-
-  *iconv_nkf_outptr = '\0';
 
   if (iconv_nkf_inpending) {
     iconv_nkf_inptr -= iconv_nkf_inpending;
