@@ -28,6 +28,13 @@
 #include "iconv-nkf.h"
 #include "iconv-real.h"
 
+#ifdef ICONV_NKF_DEBUG
+#  include <stdio.h>
+#  define DEBUG(...) fprintf(stderr, __VA_ARGS__)
+#else
+#  define DEBUG(...)
+#endif
+
 #define CONST_DISCARD(type, ptr)	((type) ((void *) (ptr)))
 
 #undef getc
@@ -53,8 +60,11 @@ iconv_nkf_getc(FILE *f)
   if (iconv_nkf_inbytesleft) {
     c = *iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
+    DEBUG("getc: %02X\n", c);
     return (int)c;
   }
+
+  DEBUG("getc: EOF\n");
 
   return EOF;
 }
@@ -69,8 +79,10 @@ iconv_nkf_putchar(int c)
   if (iconv_nkf_outbytesleft) {
     *iconv_nkf_outptr++ = c;
     iconv_nkf_outbytesleft--;
+    DEBUG("putc: %02X\n", c);
   }
   else {
+    DEBUG("putc: NO LEFT BUFFER\n");
     /* FIXME: Set error flag */
   }
 }
@@ -218,6 +230,9 @@ size_t iconv_nkf(
   options(CONST_DISCARD(unsigned char *, cd->nkf_in_option));
   options(CONST_DISCARD(unsigned char *, cd->nkf_out_option));
   kanji_convert(NULL);
+
+  DEBUG("in consumed:  %ld\n", iconv_nkf_inptr - iconv_nkf_inbuf);
+  DEBUG("out consumed: %ld\n", iconv_nkf_outptr - iconv_nkf_outbuf);
 
   *iconv_nkf_outptr = '\0';
 
