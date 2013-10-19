@@ -40,5 +40,21 @@ typedef struct {
   const char *nkf_out_option;
 } *iconv_nkf_t;
 
+iconv_nkf_t
+iconv_nkf_open(
+  const char *to,
+  const char *from
+);
+
+int iconv_nkf_close(
+  iconv_nkf_t cd
+);
+
+size_t iconv_nkf(
+  iconv_nkf_t cd,
+  char **inbuf, size_t *inbytesleft,
+  char **outbuf, size_t *outbytesleft
+);
+
 #endif /* _ICONV_NKF_H */
 
