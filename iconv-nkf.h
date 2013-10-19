@@ -38,6 +38,9 @@ typedef struct {
   iconv_real_t iconv_cd;
   const char *nkf_in_option;
   const char *nkf_out_option;
+  char pending_inbuf[16];
+  char *pending_inptr;
+  size_t pending_inbytesleft;
 } *iconv_nkf_t;
 
 iconv_nkf_t

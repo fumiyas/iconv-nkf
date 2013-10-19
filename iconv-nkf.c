@@ -46,6 +46,7 @@
 #undef TRUE
 #undef FALSE
 
+static iconv_nkf_t cd_current;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
@@ -57,8 +58,16 @@ iconv_nkf_getc(FILE *f)
 {
   unsigned char c;
 
+  if (cd_current->pending_inbytesleft) {
+    c = *cd_current->pending_inptr++;
+    cd_current->pending_inbytesleft--;
+    DEBUG("getc: %02X (pending)\n", c);
+    return (int)c;
+  }
+
   if (iconv_nkf_inbytesleft) {
-    c = *iconv_nkf_inptr++;
+    /* FIXME: Check cd_current->pending_inbuf overflow */
+    c = *cd_current->pending_inptr++ = *iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
     DEBUG("getc: %02X\n", c);
     return (int)c;
@@ -75,6 +84,8 @@ iconv_nkf_putchar(int c)
   if (iconv_nkf_guess_flag) {
     return;
   }
+
+  cd_current->pending_inptr = cd_current->pending_inbuf;
 
   if (iconv_nkf_outbytesleft) {
     *iconv_nkf_outptr++ = c;
@@ -148,6 +159,8 @@ iconv_nkf_open(
   }
 
   cd->iconv_cd = (iconv_real_t)-1;
+  cd->pending_inptr = cd->pending_inbuf;
+  cd->pending_inbytesleft = 0;
 
   nkf_encoding_options = iconv_nkf_encoding_options(from);
   if (!nkf_encoding_options || !nkf_encoding_options->in_option) {
@@ -204,6 +217,7 @@ size_t iconv_nkf(
   char **outbuf, size_t *outbytesleft
 ) {
   static pthread_mutex_t iconv_nkf_lock = PTHREAD_MUTEX_INITIALIZER;
+  size_t ret = 0;
 
   if (cd->iconv_cd != (iconv_real_t)-1) {
     return iconv_real(cd->iconv_cd, inbuf, inbytesleft, outbuf, outbytesleft);
@@ -211,11 +225,14 @@ size_t iconv_nkf(
 
   if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL) {
     /* FIXME */
+    /* FIXME: cd->pending_inptr = cd->pending_inbuf; */
+    /* FIXME: cd->pending_inbytesleft = 0; */
     return 0;
   }
 
   pthread_mutex_lock(&iconv_nkf_lock);
 
+  cd_current = cd;
   iconv_nkf_inbuf = iconv_nkf_inptr = *inbuf;
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
@@ -245,8 +262,15 @@ size_t iconv_nkf(
     /* FIXME */
   }
 
+  cd->pending_inbytesleft = cd->pending_inptr - cd->pending_inbuf;
+  cd->pending_inptr = cd->pending_inbuf;
+  if (cd->pending_inbytesleft) {
+    ret = (size_t)-1;
+    errno = EINVAL;
+  }
+
   pthread_mutex_unlock(&iconv_nkf_lock);
 
-  return 0;
+  return ret;
 }
 
