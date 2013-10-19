@@ -4,6 +4,7 @@ set -u
 LD_PRELOAD=`pwd`/iconv-nkf.so
 export LD_PRELOAD
 
+echo "Test: iconv-nkf.so: iconv(1) で柔軟なエンコーディング変換"
 str_in='123 あ ①'
 str_out=`
   echo "$str_in" \
@@ -13,8 +14,8 @@ str_out=`
   |iconv --from 'ISO-2022-JP' --to 'UTF-8' \
   ;
 `
-
-echo "Expected: $str_in (`echo $str_in |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
-echo "Got:      $str_out (`echo $str_out |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
-echo "Result:   "`[ "$str_in" = "$str_out" ] && echo "OK" || echo "NG"`
+echo "期待値: $str_in (`echo $str_in |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
+echo "取得値: $str_out (`echo $str_out |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
+echo "結果:   "`[ "$str_in" = "$str_out" ] && echo "OK" || echo "NG"`
+echo
 
