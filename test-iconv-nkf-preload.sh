@@ -15,7 +15,7 @@ str_out=`
   ;
 `
 echo "期待値: $str_in (`echo $str_in |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
-echo "取得値: $str_out (`echo $str_out |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
-echo "結果:   "`[ "$str_in" = "$str_out" ] && echo "OK" || echo "NG"`
+echo "結果値: $str_out (`echo $str_out |od -tx1 |sed -n '1s/^[^ ]* //p'`)"
+echo "判定: "`[ "$str_in" = "$str_out" ] && echo "OK" || echo "NG"`
 echo
 

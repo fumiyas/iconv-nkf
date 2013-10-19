@@ -1,3 +1,4 @@
 iconv-nkf
+test-iconv-nkf
 *.o
 *.so
