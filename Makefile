@@ -27,7 +27,7 @@ install:
 	cp iconv-nkf.so $(DESTDIR)$(libdir)/
 
 test: iconv-nkf.so
-	./test-iconv-nkf.sh
+	./test-iconv-nkf-preload.sh
 
 build: $(BUILD_TARGETS)
 
