@@ -22,7 +22,7 @@ int main(void) {
   printf("in consumed:  %ld\n", inptr - inbuf);
   printf("out consumed: %ld\n", outptr - outbuf);
   strcat(inbuf, "\x82");
-  inleft = 1;
+  inleft += 1;
   ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
   printf("status:       %ld\n", ret);
   printf("in consumed:  %ld\n", inptr - inbuf);
