@@ -26,7 +26,7 @@ install:
 	rm -f $(DESTDIR)$(libdir)/iconv-nkf.so
 	cp iconv-nkf.so $(DESTDIR)$(libdir)/
 
-test: test-iconv-nkf iconv-nkf.so
+test t: test-iconv-nkf iconv-nkf.so
 	./test-iconv-nkf
 	./test-iconv-nkf-preload.sh
 

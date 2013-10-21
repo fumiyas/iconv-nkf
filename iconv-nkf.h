@@ -38,6 +38,7 @@ typedef struct {
   iconv_real_t iconv_cd;
   const char *nkf_in_option;
   const char *nkf_out_option;
+  int in_is_iso2022;
 } *iconv_nkf_t;
 
 iconv_nkf_t

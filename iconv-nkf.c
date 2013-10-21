@@ -51,8 +51,20 @@ static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
 static size_t iconv_nkf_inpending;
+static int iconv_nkf_in_is_iso2022;
+static char *iconv_nkf_iso2022_ascii_inptr;
+static char *iconv_nkf_iso2022_ascii_outptr;
 static int iconv_nkf_guess_flag;
 static int iconv_nkf_errno;
+
+static int iconv_nkf_getc(FILE *f);
+static void iconv_nkf_putchar(int c);
+
+#define PERL_XS 1
+#define iconv iconv_x
+#include "nkf-dist/utf8tbl.c"
+#include "nkf-dist/nkf.c"
+#undef iconv
 
 static int
 iconv_nkf_getc(FILE *f)
@@ -83,6 +95,10 @@ iconv_nkf_putchar(int c)
     *iconv_nkf_outptr++ = c;
     iconv_nkf_outbytesleft--;
     iconv_nkf_inpending = 0;
+    if (iconv_nkf_in_is_iso2022 && input_mode == ASCII) {
+      iconv_nkf_iso2022_ascii_inptr = iconv_nkf_inptr;
+      iconv_nkf_iso2022_ascii_outptr = iconv_nkf_outptr;
+    }
     DEBUG("putc: %02X\n", c);
   }
   else {
@@ -90,12 +106,6 @@ iconv_nkf_putchar(int c)
     /* FIXME: Set error flag */
   }
 }
-
-#define PERL_XS 1
-#define iconv iconv_x
-#include "nkf-dist/utf8tbl.c"
-#include "nkf-dist/nkf.c"
-#undef iconv
 
 typedef struct {
   const char *name;
@@ -158,6 +168,7 @@ iconv_nkf_open(
     goto err;
   }
   cd->nkf_in_option = nkf_encoding_options->in_option;
+  cd->in_is_iso2022 = !strncasecmp(from, "ISO", sizeof("ISO")-1) ? 1 : 0;
 
   nkf_encoding_options = iconv_nkf_encoding_options(to);
   if (!nkf_encoding_options || !nkf_encoding_options->out_option) {
@@ -227,6 +238,9 @@ size_t iconv_nkf(
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
   iconv_nkf_outbytesleft = *outbytesleft;
   iconv_nkf_inpending = 0;
+  iconv_nkf_in_is_iso2022 = cd->in_is_iso2022;
+  iconv_nkf_iso2022_ascii_inptr = iconv_nkf_inptr;
+  iconv_nkf_iso2022_ascii_outptr = iconv_nkf_outptr;
   iconv_nkf_guess_flag = 0;
   iconv_nkf_errno = 0;
 
@@ -240,10 +254,23 @@ size_t iconv_nkf(
   DEBUG("in consumed:  %ld\n", iconv_nkf_inptr - iconv_nkf_inbuf);
   DEBUG("out consumed: %ld\n", iconv_nkf_outptr - iconv_nkf_outbuf);
 
-  if (iconv_nkf_inpending) {
-    iconv_nkf_inptr -= iconv_nkf_inpending;
-    ret = (size_t)-1;
-    errno = EINVAL;
+  if (cd->in_is_iso2022) {
+fprintf(stderr, "xxx %d\n", input_mode);
+    if (input_mode != ASCII) {
+      iconv_nkf_inptr = iconv_nkf_iso2022_ascii_inptr;
+      iconv_nkf_outptr = iconv_nkf_iso2022_ascii_outptr;
+      iconv_nkf_inpending = 0;
+      ret = (size_t)-1;
+      errno = EINVAL;
+    }
+  }
+  else {
+    if (iconv_nkf_inpending) {
+      iconv_nkf_inptr -= iconv_nkf_inpending;
+      ret = (size_t)-1;
+  fprintf(stderr, "yyy\n");
+      errno = EINVAL;
+    }
   }
 
   *inbuf = iconv_nkf_inptr;
