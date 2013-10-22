@@ -46,7 +46,6 @@
 #undef TRUE
 #undef FALSE
 
-static iconv_nkf_t cd_current;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
@@ -162,13 +161,18 @@ iconv_nkf_open(
     goto err;
   }
   cd->nkf_in_option = nkf_encoding_options->in_option;
-  cd->in_is_iso2022 = !strncasecmp(from, "ISO", sizeof("ISO")-1) ? 1 : 0;
 
   nkf_encoding_options = iconv_nkf_encoding_options(to);
   if (!nkf_encoding_options || !nkf_encoding_options->out_option) {
     goto err;
   }
   cd->nkf_out_option = nkf_encoding_options->out_option;
+
+  cd->nkf_input_mode = 0;
+  cd->nkf_shift_mode = 0;
+  cd->nkf_g2 = 0;
+  cd->nkf_output_mode = 0;
+  cd->in_is_iso2022 = !strncasecmp(from, "ISO", sizeof("ISO")-1) ? 1 : 0;
 
   return cd;
 
@@ -219,14 +223,19 @@ size_t iconv_nkf(
     return iconv_real(cd->iconv_cd, inbuf, inbytesleft, outbuf, outbytesleft);
   }
 
-  if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL) {
-    /* FIXME */
+  if (inbuf == NULL || *inbuf == NULL) {
+    if (outbuf && *outbuf) {
+      /* FIXME */
+    }
+    cd->nkf_input_mode = 0;
+    cd->nkf_shift_mode = 0;
+    cd->nkf_g2 = 0;
+    cd->nkf_output_mode = 0;
     return 0;
   }
 
   pthread_mutex_lock(&iconv_nkf_lock);
 
-  cd_current = cd;
   iconv_nkf_inbuf = iconv_nkf_inptr = *inbuf;
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
