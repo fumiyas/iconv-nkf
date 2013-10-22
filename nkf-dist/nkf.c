@@ -557,6 +557,10 @@ static  nkf_char    (*i_mungetc_buf)(nkf_char c,FILE *f) = std_ungetc;
 static int output_mode = ASCII;    /* output kanji mode */
 static int input_mode =  ASCII;    /* input kanji mode */
 static int mime_decode_mode =   FALSE;    /* MIME mode B base64, Q hex */
+#ifdef ICONV_NKF
+static int shift_mode = 0; /* 0, 1, 2, 3 */
+static int g2 = 0;
+#endif
 
 /* X0201 / X0208 conversion tables */
 
@@ -5276,6 +5280,10 @@ reinit(void)
     output_mode = ASCII;
     input_mode =  ASCII;
     mime_decode_mode = FALSE;
+#ifdef ICONV_NKF
+    shift_mode = 0;
+    g2 = 0;
+#endif
     file_out_f = FALSE;
     eolmode_f = 0;
     input_eol = 0;
@@ -5435,16 +5443,20 @@ static int
 kanji_convert(FILE *f)
 {
     nkf_char c1=0, c2=0, c3=0, c4=0;
+#if !defined(ICONV_NKF)
     int shift_mode = 0; /* 0, 1, 2, 3 */
     int g2 = 0;
+#endif
     int is_8bit = FALSE;
 
     if (input_encoding && !nkf_enc_asciicompat(input_encoding)) {
 	is_8bit = TRUE;
     }
 
+#if !defined(ICONV_NKF)
     input_mode = ASCII;
     output_mode = ASCII;
+#endif
 
     if (module_connection() < 0) {
 #if !defined(PERL_XS) && !defined(WIN32DLL)

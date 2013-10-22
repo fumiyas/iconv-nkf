@@ -104,14 +104,16 @@ int main(void) {
   outleft = sizeof(outbuf);
   errno = 0;
   ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
-  printf("期待値: 戻値=-1, 入力元消費=0, 出力先消費=0, errno=%d (%s)\n",
-    EINVAL, strerror(EINVAL)
+  inlen = inptr - inbuf;
+  outlen = outptr - outbuf;
+  printf("期待値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+   (size_t)0, (size_t)5, (size_t)3, 0, strerror(0)
   );
   printf("結果値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
     ret, inptr - inbuf, outptr - outbuf, errno, strerror(errno)
   );
   printf("判定: ");
-  if (ret == (size_t)-1 && inptr == inbuf && outptr == outbuf && errno == EINVAL) {
+  if (ret == (size_t)0 && inlen == 5 && outlen == 3 && errno == 0) {
     puts("OK");
   }
   else {
