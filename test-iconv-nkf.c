@@ -2,7 +2,15 @@
 #include <string.h>
 #include <errno.h>
 
-#include "iconv-nkf.h"
+#ifdef TEST_ICONV
+#  include <iconv.h>
+#  define iconv_nkf_t		iconv_t
+#  define iconv_nkf_open	iconv_open
+#  define iconv_nkf_close	iconv_close
+#  define iconv_nkf		iconv
+#else
+#  include "iconv-nkf.h"
+#endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
