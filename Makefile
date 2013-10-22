@@ -1,4 +1,4 @@
-BUILD_TARGETS = iconv-nkf iconv-nkf.so libiconv-nkf.so test-iconv-nkf test-iconv
+BUILD_TARGETS = iconv-nkf iconv-nkf.so libiconv-nkf.so test-iconv-nkf
 
 CC = gcc
 CFLAGS = -O2 -g -Wall -fPIC $(CFLAGS_EXTRA)
@@ -48,10 +48,4 @@ libiconv-nkf.so: iconv-nkf.o
 
 test-iconv-nkf: test-iconv-nkf.o iconv-nkf.o
 	$(CC) $(LDFLAGS) -o $@ test-iconv-nkf.o iconv-nkf.o
-
-test-iconv.o: test-iconv-nkf.c
-	$(CC) $(CFLAGS) -DTEST_ICONV -o $@ -c test-iconv-nkf.c
-
-test-iconv: test-iconv.o
-	$(CC) $(LDFLAGS) -o $@ test-iconv.o
 

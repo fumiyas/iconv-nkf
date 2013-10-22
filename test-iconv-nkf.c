@@ -2,17 +2,11 @@
 #include <string.h>
 #include <errno.h>
 
-#ifdef TEST_ICONV
-#  include <iconv.h>
-#  define iconv_nkf_t		iconv_t
-#  define iconv_nkf_open	iconv_open
-#  define iconv_nkf_close	iconv_close
-#  define iconv_nkf		iconv
-#else
-#  include "iconv-nkf.h"
-#endif
+#include "iconv.h"
+#include "iconv-nkf.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 void hexdump(const char *str, size_t len) {
   size_t i;
@@ -24,138 +18,105 @@ void hexdump(const char *str, size_t len) {
 }
 
 int main(void) {
-  iconv_nkf_t cd;
-  char inbuf[8192], outbuf[8192];
-  char *inptr, *outptr;
-  size_t inleft, inlen, outleft, outlen, ret;
+  int i;
+  const char *from = "UTF-8", *to;
+  const char * const encodings[] = {
+    "Shift_JIS", "EUC-JP", "ISO-2022-JP", "UTF-8", NULL
+  };
 
-  /* 「あ」(E3 81 82) を分割して渡すテスト */
+  char i_buf[8192] = "ABCDEFG あいうえおかきくけこ \x1B XYZ わをん";
+  char *i_ptr;
+  size_t i_len = strlen(i_buf);
+  size_t i_left;
+  size_t i_step;
 
-  cd = iconv_nkf_open("Shift_JIS", "UTF-8");
+  iconv_t org_cd;
+  int org_errno;
+  char org_i_buf[8192], org_o_buf[8192];
+  char *org_i_ptr, *org_o_ptr;
+  size_t org_i_left, org_i_len, org_o_left, org_o_len, org_ret;
 
-  puts("Test: iconv_nkf(): マルチバイト文字の分割渡し Part 1");
-  strcpy(inbuf, "\xE3\x81");
-  inptr = inbuf;
-  inleft = strlen(inptr);
-  outptr = outbuf;
-  outleft = sizeof(outbuf);
-  errno = 0;
-  ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
-  printf("期待値: 戻値=-1, 入力元消費=0, 出力先消費=0, errno=%d (%s)\n",
-    EINVAL, strerror(EINVAL)
-  );
-  printf("結果値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-    ret, inptr - inbuf, outptr - outbuf, errno, strerror(errno)
-  );
-  printf("判定: ");
-  if (ret == (size_t)-1 && inptr == inbuf && outptr == outbuf && errno == EINVAL) {
-    puts("OK");
+  iconv_nkf_t nkf_cd;
+  int nkf_errno;
+  char nkf_i_buf[8192], nkf_o_buf[8192];
+  char *nkf_i_ptr, *nkf_o_ptr;
+  size_t nkf_i_left, nkf_i_len, nkf_o_left, nkf_o_len, nkf_ret;
+
+  printf("str: ");
+  hexdump(i_buf, i_len);
+
+  for (i = 0; encodings[i]; i++) {
+    puts("======================================================================");
+    to = encodings[i];
+
+    for (i_step = i_len; i_step > 0; i_step--) {
+      puts("----------------------------------------------------------------------");
+      org_cd = iconv_open(to, from);
+      org_i_ptr = org_i_buf;
+      org_i_left = 0;
+      org_o_ptr = org_o_buf;
+      org_o_left = sizeof(org_o_buf);
+
+      nkf_cd = iconv_nkf_open(to, from);
+      nkf_i_ptr = nkf_i_buf;
+      nkf_i_left = 0;
+      nkf_o_ptr = nkf_o_buf;
+      nkf_o_left = sizeof(nkf_o_buf);
+
+      for (i_ptr = i_buf, i_left = i_len; i_left > 0; i_ptr += i_step, i_left -= min(i_step, i_left)) {
+	printf("i_len=%ld i_step=%ld from=%s to=%s\n", i_len, i_step, from, to);
+
+	memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
+	org_i_left += min(i_step, i_left);
+	errno = 0;
+	org_ret = iconv(org_cd, &org_i_ptr, &org_i_left, &org_o_ptr, &org_o_left);
+	org_errno = errno;
+	org_i_len = org_i_ptr - org_i_buf;
+	org_o_len = org_o_ptr - org_o_buf;
+
+	memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
+	nkf_i_left += min(i_step, i_left);
+	errno = 0;
+	nkf_ret = iconv_nkf(nkf_cd, &nkf_i_ptr, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
+	nkf_errno = errno;
+	nkf_i_len = nkf_i_ptr - nkf_i_buf;
+	nkf_o_len = nkf_o_ptr - nkf_o_buf;
+
+	printf("ret org: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	  org_ret, org_i_len, org_o_len, org_errno, strerror(org_errno)
+	);
+	printf("ret nkf: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	  nkf_ret, nkf_i_len, nkf_o_len, nkf_errno, strerror(nkf_errno)
+	);
+	printf("ret: ");
+	if (org_ret == nkf_ret && org_i_len == nkf_i_len && org_o_len == nkf_o_len && org_errno == nkf_errno) {
+	  puts("OK");
+	}
+	else {
+	  puts("NG");
+	}
+
+	printf("str org: ");
+	hexdump(org_o_buf, org_o_len);
+	printf("str nkf: ");
+	hexdump(nkf_o_buf, nkf_o_len);
+	printf("str: ");
+	if (org_o_len == nkf_o_len && !memcmp(org_o_buf, nkf_o_buf, min(org_o_len, nkf_o_len))) {
+	  puts("OK");
+	}
+	else {
+	  puts("NG");
+	}
+      }
+
+      iconv_close(org_cd);
+      iconv_nkf_close(nkf_cd);
+    }
+
+    memcpy(i_buf, org_o_buf, org_o_len);
+    i_len = org_o_len;
+    from = to;
   }
-  else {
-    puts("NG");
-  }
-
-  puts("Test: iconv_nkf(): マルチバイト文字の分割渡し Part 2");
-  strcat(inbuf, "\x82");
-  inleft = strlen(inptr);
-  errno = 0;
-  ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
-  inlen = inptr - inbuf;
-  outlen = outptr - outbuf;
-  printf("期待値: 戻値= 0, 入力元消費=3, 出力先消費=2, errno=%d (%s)\n",
-    0, strerror(0)
-  );
-  printf("結果値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-    ret, inptr - inbuf, outptr - outbuf, errno, strerror(errno)
-  );
-  printf("判定: ");
-  if (ret == (size_t)0 && inlen == 3 && outlen == 2 && errno == 0) {
-    puts("OK");
-  }
-  else {
-    puts("NG");
-  }
-
-  puts("Test: iconv_nkf(): マルチバイト文字の分割渡し変換結果");
-  printf("期待値: ");
-  hexdump("\x82\xA0", 2);
-  printf("結果値: ");
-  hexdump(outbuf, outlen);
-  printf("判定: ");
-  if (!memcmp(outbuf, "\x82\xA0", max(2, outlen))) {
-    puts("OK");
-  }
-  else {
-    puts("NG");
-
-  }
-
-  iconv_nkf_close(cd);
-
-  /* 「あい」(ISO-2022-JP 表現) を分割して渡すテスト */
-
-  cd = iconv_nkf_open("UTF-8", "ISO-2022-JP");
-
-  puts("Test: iconv_nkf(): ISO-2022-JP 文字列の分割渡し Part 1");
-  strcpy(inbuf, "\x1B\x24\x42\x24\x22");
-  inptr = inbuf;
-  inleft = strlen(inptr);
-  outptr = outbuf;
-  outleft = sizeof(outbuf);
-  errno = 0;
-  ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
-  inlen = inptr - inbuf;
-  outlen = outptr - outbuf;
-  printf("期待値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-   (size_t)0, (size_t)5, (size_t)3, 0, strerror(0)
-  );
-  printf("結果値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-    ret, inptr - inbuf, outptr - outbuf, errno, strerror(errno)
-  );
-  printf("判定: ");
-  if (ret == (size_t)0 && inlen == 5 && outlen == 3 && errno == 0) {
-    puts("OK");
-  }
-  else {
-    puts("NG");
-  }
-
-  puts("Test: iconv_nkf(): ISO-2022-JP 文字列の分割渡し Part 2");
-  strcat(inbuf, "\x24\x24\x1B\x28\x42");
-  inleft = strlen(inptr);
-  errno = 0;
-  ret = iconv_nkf(cd, &inptr, &inleft, &outptr, &outleft);
-  inlen = inptr - inbuf;
-  outlen = outptr - outbuf;
-  printf("期待値: 戻値= 0, 入力元消費=10, 出力先消費=6, errno=%d (%s)\n",
-    0, strerror(0)
-  );
-  printf("結果値: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-    ret, inptr - inbuf, outptr - outbuf, errno, strerror(errno)
-  );
-  printf("判定: ");
-  if (ret == (size_t)0 && inlen == 10 && outlen == 6 && errno == 0) {
-    puts("OK");
-  }
-  else {
-    puts("NG");
-  }
-
-  puts("Test: iconv_nkf(): ISO-2022-JP 文字列の分割渡し変換結果");
-  printf("期待値: ");
-  hexdump("あい", sizeof("あい") - 1);
-  printf("結果値: ");
-  hexdump(outbuf, outlen);
-  printf("判定: ");
-  if (!memcmp(outbuf, "あい", max(sizeof("あい") - 1, outlen))) {
-    puts("OK");
-  }
-  else {
-    puts("NG");
-
-  }
-
-  iconv_nkf_close(cd);
 
   return 0;
 }
