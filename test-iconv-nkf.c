@@ -63,13 +63,15 @@ int main(void) {
       nkf_o_ptr = nkf_o_buf;
       nkf_o_left = sizeof(nkf_o_buf);
 
-      for (i_ptr = i_buf, i_left = i_len; i_left > 0; i_ptr += i_step, i_left -= min(i_step, i_left)) {
+      i_ptr = i_buf;
+      i_left = i_len;
+      for (; i_ptr <= i_buf + i_len; i_ptr += i_step, i_left -= min(i_step, i_left)) {
 	printf("i_len=%ld i_step=%ld from=%s to=%s\n", i_len, i_step, from, to);
 
 	memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
 	org_i_left += min(i_step, i_left);
 	errno = 0;
-	org_ret = iconv(org_cd, &org_i_ptr, &org_i_left, &org_o_ptr, &org_o_left);
+	org_ret = iconv(org_cd, org_i_left ? &org_i_ptr : NULL, &org_i_left, &org_o_ptr, &org_o_left);
 	org_errno = errno;
 	org_i_len = org_i_ptr - org_i_buf;
 	org_o_len = org_o_ptr - org_o_buf;
@@ -77,7 +79,7 @@ int main(void) {
 	memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
 	nkf_i_left += min(i_step, i_left);
 	errno = 0;
-	nkf_ret = iconv_nkf(nkf_cd, &nkf_i_ptr, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
+	nkf_ret = iconv_nkf(nkf_cd, nkf_i_left ? &nkf_i_ptr : NULL, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
 	nkf_errno = errno;
 	nkf_i_len = nkf_i_ptr - nkf_i_buf;
 	nkf_o_len = nkf_o_ptr - nkf_o_buf;
