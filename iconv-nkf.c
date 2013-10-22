@@ -46,12 +46,14 @@
 #undef TRUE
 #undef FALSE
 
+static iconv_nkf_t iconv_nkf_cd;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
 static size_t iconv_nkf_inpending;
 static int iconv_nkf_guess_flag;
 static int iconv_nkf_errno;
+static int iconv_nkf_output_mode_prev;
 
 static int iconv_nkf_getc(FILE *f);
 static void iconv_nkf_putchar(int c);
@@ -72,6 +74,7 @@ iconv_nkf_getc(FILE *f)
     c = *iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
     iconv_nkf_inpending++;
+    iconv_nkf_cd->out_is_in_escape = 0;
     DEBUG("getc: %02X\n", c);
     return (int)c;
   }
@@ -91,7 +94,23 @@ iconv_nkf_putchar(int c)
   if (iconv_nkf_outbytesleft) {
     *iconv_nkf_outptr++ = c;
     iconv_nkf_outbytesleft--;
-    iconv_nkf_inpending = 0;
+    if (iconv_nkf_cd->out_is_iso2022) {
+      if (c == '\x1B') {
+	iconv_nkf_output_mode_prev = output_mode;
+	iconv_nkf_cd->out_is_in_escape = 3;
+      }
+      else {
+	if (iconv_nkf_cd->out_is_in_escape) {
+	  iconv_nkf_cd->out_is_in_escape--;
+	}
+	if (!iconv_nkf_cd->out_is_in_escape) {
+	  iconv_nkf_inpending = 0;
+	}
+      }
+    }
+    else {
+      iconv_nkf_inpending = 0;
+    }
     DEBUG("putc: %02X\n", c);
   }
   else {
@@ -172,7 +191,9 @@ iconv_nkf_open(
   cd->nkf_shift_mode = 0;
   cd->nkf_g2 = 0;
   cd->nkf_output_mode = 0;
-  cd->in_is_iso2022 = !strncasecmp(from, "ISO", sizeof("ISO")-1) ? 1 : 0;
+  cd->in_is_iso2022 = !strncasecmp(from, "ISO", 3) ? 1 : 0;
+  cd->out_is_iso2022 = !strncasecmp(to, "ISO", 3) ? 1 : 0;
+  cd->out_is_in_escape = 0;
 
   return cd;
 
@@ -226,6 +247,16 @@ size_t iconv_nkf(
   if (inbuf == NULL || *inbuf == NULL) {
     if (outbuf && *outbuf) {
       /* FIXME */
+      if (cd->out_is_iso2022 && cd->nkf_output_mode != ASCII) {
+	if (*outbytesleft < 3) {
+	  errno = E2BIG;
+	  return -1;
+	}
+	memcpy(*outbuf, "\x1B(B", 3);
+	*outbuf += 3;
+	*outbytesleft -= 3;
+	return 0;
+      }
     }
     cd->nkf_input_mode = 0;
     cd->nkf_shift_mode = 0;
@@ -236,6 +267,7 @@ size_t iconv_nkf(
 
   pthread_mutex_lock(&iconv_nkf_lock);
 
+  iconv_nkf_cd = cd;
   iconv_nkf_inbuf = iconv_nkf_inptr = *inbuf;
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
@@ -243,6 +275,7 @@ size_t iconv_nkf(
   iconv_nkf_inpending = 0;
   iconv_nkf_guess_flag = 0;
   iconv_nkf_errno = 0;
+  iconv_nkf_output_mode_prev = 0;
 
   reinit();
   input_mode = cd->nkf_input_mode;
@@ -255,8 +288,18 @@ size_t iconv_nkf(
   options(CONST_DISCARD(unsigned char *, cd->nkf_out_option));
   kanji_convert(NULL);
 
-  DEBUG("in consumed:  %ld\n", iconv_nkf_inptr - iconv_nkf_inbuf);
-  DEBUG("out consumed: %ld\n", iconv_nkf_outptr - iconv_nkf_outbuf);
+  cd->nkf_input_mode = input_mode;
+  cd->nkf_shift_mode = shift_mode;
+  cd->nkf_g2 = g2;
+  cd->nkf_output_mode = output_mode;
+
+  if (cd->out_is_iso2022) {
+    if (iconv_nkf_outptr - iconv_nkf_outbuf >= 3
+	&& !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
+	iconv_nkf_outptr -= 3;
+	cd->nkf_output_mode = iconv_nkf_output_mode_prev;
+    }
+  }
 
   if (iconv_nkf_inpending && (!cd->in_is_iso2022 || !input_mode == ASCII)) {
     iconv_nkf_inptr -= iconv_nkf_inpending;
@@ -268,11 +311,6 @@ size_t iconv_nkf(
   *inbytesleft -= iconv_nkf_inptr - iconv_nkf_inbuf;
   *outbuf = iconv_nkf_outptr;
   *outbytesleft -= iconv_nkf_outptr - iconv_nkf_outbuf;
-
-  cd->nkf_input_mode = input_mode;
-  cd->nkf_shift_mode = shift_mode;
-  cd->nkf_g2 = g2;
-  cd->nkf_output_mode = output_mode;
 
   if (iconv_nkf_errno) {
     /* FIXME */

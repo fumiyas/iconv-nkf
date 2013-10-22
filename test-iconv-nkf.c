@@ -109,6 +109,8 @@ int main(void) {
 	else {
 	  puts("NG");
 	}
+
+	fflush(stdout);
       }
 
       iconv_close(org_cd);

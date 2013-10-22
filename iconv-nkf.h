@@ -43,6 +43,8 @@ typedef struct {
   int nkf_g2;
   int nkf_output_mode;
   int in_is_iso2022;
+  int out_is_iso2022;
+  int out_is_in_escape;
 } *iconv_nkf_t;
 
 iconv_nkf_t
