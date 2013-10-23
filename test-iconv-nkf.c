@@ -155,6 +155,6 @@ int main(void) {
   printf("Test result: %s (OK=%d ERROR=%d WARNING=%d)\n",
       test_error ? "ERROR" : "OK", test_ok, test_error, test_warning);
 
-  return test_error;
+  return test_error ? 1 : 0;
 }
 
