@@ -50,6 +50,7 @@ static iconv_nkf_t iconv_nkf_cd;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
+static int iconv_nkf_inprev;
 static size_t iconv_nkf_inpending;
 static int iconv_nkf_guess_flag;
 static int iconv_nkf_errno;
@@ -71,7 +72,7 @@ iconv_nkf_getc(FILE *f)
   unsigned char c;
 
   if (iconv_nkf_inbytesleft) {
-    c = *iconv_nkf_inptr++;
+    iconv_nkf_inprev = c = *iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
     iconv_nkf_inpending++;
     iconv_nkf_cd->out_is_in_escape = 0;
@@ -95,17 +96,20 @@ iconv_nkf_putchar(int c)
     *iconv_nkf_outptr++ = c;
     iconv_nkf_outbytesleft--;
     if (iconv_nkf_cd->out_is_iso2022) {
-      if (c == '\x1B') {
-	iconv_nkf_output_mode_prev = output_mode;
-	iconv_nkf_cd->out_is_in_escape = 3;
+      if (c == ESC) {
+	if (iconv_nkf_inprev != ESC) {
+	  iconv_nkf_output_mode_prev = output_mode;
+	  iconv_nkf_cd->out_is_in_escape = 1;
+	}
+	else {
+	  iconv_nkf_cd->out_is_in_escape = 0;
+	}
       }
-      else {
-	if (iconv_nkf_cd->out_is_in_escape) {
-	  iconv_nkf_cd->out_is_in_escape--;
-	}
-	if (!iconv_nkf_cd->out_is_in_escape) {
-	  iconv_nkf_inpending = 0;
-	}
+      else if (iconv_nkf_cd->out_is_in_escape && output_mode != iconv_nkf_output_mode_prev) {
+	iconv_nkf_cd->out_is_in_escape = 0;
+      }
+      if (!iconv_nkf_cd->out_is_in_escape) {
+	iconv_nkf_inpending = 0;
       }
     }
     else {
@@ -272,6 +276,7 @@ size_t iconv_nkf(
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
   iconv_nkf_outbytesleft = *outbytesleft;
+  iconv_nkf_inprev = 0;
   iconv_nkf_inpending = 0;
   iconv_nkf_guess_flag = 0;
   iconv_nkf_errno = 0;
@@ -293,9 +298,11 @@ size_t iconv_nkf(
   cd->nkf_g2 = g2;
   cd->nkf_output_mode = output_mode;
 
+#define inlen (iconv_nkf_inptr - iconv_nkf_inbuf)
+#define outlen (iconv_nkf_outptr - iconv_nkf_outbuf)
+
   if (cd->out_is_iso2022) {
-    if (iconv_nkf_outptr - iconv_nkf_outbuf >= 3
-	&& !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
+    if (outlen >= 3 && !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
 	iconv_nkf_outptr -= 3;
 	cd->nkf_output_mode = iconv_nkf_output_mode_prev;
     }
@@ -308,9 +315,9 @@ size_t iconv_nkf(
   }
 
   *inbuf = iconv_nkf_inptr;
-  *inbytesleft -= iconv_nkf_inptr - iconv_nkf_inbuf;
+  *inbytesleft -= inlen;
   *outbuf = iconv_nkf_outptr;
-  *outbytesleft -= iconv_nkf_outptr - iconv_nkf_outbuf;
+  *outbytesleft -= outlen;
 
   if (iconv_nkf_errno) {
     /* FIXME */
