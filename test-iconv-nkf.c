@@ -21,7 +21,12 @@ int main(void) {
   int i, test = 0, test_ok = 0, test_warning = 0, test_error = 0;
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
-    "Shift_JIS", "EUC-JP", "ISO-2022-JP", "UTF-8", NULL
+    "UTF8",
+    "Shift_JIS", "SJIS",
+    "EUC-JP", "EUCJP",
+    "ISO-2022-JP", "ISO2022JP",
+    "UTF-8",
+    NULL
   };
 
   char i_buf[8192] = "ABCDEFG あいうえおかきくけこ \x1B XYZ わをん";
@@ -119,19 +124,20 @@ int main(void) {
 	printf("str nkf: ");
 	hexdump(nkf_o_buf, nkf_o_eaten);
 	printf("Test %4d: ", ++test);
-	if (org_o_eaten == nkf_o_eaten && !memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten))) {
-	  puts("OK");
-	  test_ok++;
-	}
-	else {
-	  if (nkf_i_len) {
+
+	if (!memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten))) {
+	  if (org_o_eaten == nkf_o_eaten) {
+	    puts("OK");
+	    test_ok++;
+	  }
+	  else {
 	    puts("WARNING");
 	    test_warning++;
 	  }
-	  else {
-	    puts("ERROR");
-	    test_error++;
-	  }
+	}
+	else {
+	  puts("ERROR");
+	  test_error++;
 	}
 
 	fflush(stdout);
