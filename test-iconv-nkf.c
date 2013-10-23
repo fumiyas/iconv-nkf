@@ -12,13 +12,13 @@ void hexdump(const char *str, size_t len) {
   size_t i;
 
   for (i = 0; i < len; i++) {
-    printf("%s%02x", (i == 0 ? "" : (i % 10 == 0) ? "|" : " "), (unsigned char)str[i]);
+    printf("%02x%s", (unsigned char)str[i], ((i+1) % 10 ? " " : "|"));
   }
   puts("");
 }
 
 int main(void) {
-  int i;
+  int i, test = 0;
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
     "Shift_JIS", "EUC-JP", "ISO-2022-JP", "UTF-8", NULL
@@ -34,13 +34,17 @@ int main(void) {
   int org_errno;
   char org_i_buf[8192], org_o_buf[8192];
   char *org_i_ptr, *org_o_ptr;
-  size_t org_i_left, org_i_len, org_o_left, org_o_len, org_ret;
+  size_t org_ret;
+  size_t org_i_left, org_i_eaten;
+  size_t org_o_left, org_o_eaten;
 
   iconv_nkf_t nkf_cd;
   int nkf_errno;
   char nkf_i_buf[8192], nkf_o_buf[8192];
   char *nkf_i_ptr, *nkf_o_ptr;
-  size_t nkf_i_left, nkf_i_len, nkf_o_left, nkf_o_len, nkf_ret;
+  size_t nkf_ret;
+  size_t nkf_i_left, nkf_i_eaten;
+  size_t nkf_o_left, nkf_o_eaten;
 
   printf("str: ");
   hexdump(i_buf, i_len);
@@ -70,28 +74,32 @@ int main(void) {
 
 	memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
 	org_i_left += min(i_step, i_left);
+	printf("str org in: ");
+	hexdump(org_i_ptr, org_i_left);
 	errno = 0;
 	org_ret = iconv(org_cd, org_i_left ? &org_i_ptr : NULL, &org_i_left, &org_o_ptr, &org_o_left);
 	org_errno = errno;
-	org_i_len = org_i_ptr - org_i_buf;
-	org_o_len = org_o_ptr - org_o_buf;
+	org_i_eaten = org_i_ptr - org_i_buf;
+	org_o_eaten = org_o_ptr - org_o_buf;
 
 	memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
 	nkf_i_left += min(i_step, i_left);
+	printf("str nkf in: ");
+	hexdump(nkf_i_ptr, nkf_i_left);
 	errno = 0;
 	nkf_ret = iconv_nkf(nkf_cd, nkf_i_left ? &nkf_i_ptr : NULL, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
 	nkf_errno = errno;
-	nkf_i_len = nkf_i_ptr - nkf_i_buf;
-	nkf_o_len = nkf_o_ptr - nkf_o_buf;
+	nkf_i_eaten = nkf_i_ptr - nkf_i_buf;
+	nkf_o_eaten = nkf_o_ptr - nkf_o_buf;
 
-	printf("ret org: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-	  org_ret, org_i_len, org_o_len, org_errno, strerror(org_errno)
+	printf("ret org out: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	  org_ret, org_i_eaten, org_o_eaten, org_errno, strerror(org_errno)
 	);
-	printf("ret nkf: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-	  nkf_ret, nkf_i_len, nkf_o_len, nkf_errno, strerror(nkf_errno)
+	printf("ret nkf out: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	  nkf_ret, nkf_i_eaten, nkf_o_eaten, nkf_errno, strerror(nkf_errno)
 	);
-	printf("ret: ");
-	if (org_ret == nkf_ret && org_i_len == nkf_i_len && org_o_len == nkf_o_len && org_errno == nkf_errno) {
+	printf("Test %4d: ", test++);
+	if (org_ret == nkf_ret && org_i_eaten == nkf_i_eaten && org_o_eaten == nkf_o_eaten && org_errno == nkf_errno) {
 	  puts("OK");
 	}
 	else {
@@ -99,11 +107,11 @@ int main(void) {
 	}
 
 	printf("str org: ");
-	hexdump(org_o_buf, org_o_len);
+	hexdump(org_o_buf, org_o_eaten);
 	printf("str nkf: ");
-	hexdump(nkf_o_buf, nkf_o_len);
-	printf("str: ");
-	if (org_o_len == nkf_o_len && !memcmp(org_o_buf, nkf_o_buf, min(org_o_len, nkf_o_len))) {
+	hexdump(nkf_o_buf, nkf_o_eaten);
+	printf("Test %4d: ", test++);
+	if (org_o_eaten == nkf_o_eaten && !memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten))) {
 	  puts("OK");
 	}
 	else {
@@ -117,8 +125,8 @@ int main(void) {
       iconv_nkf_close(nkf_cd);
     }
 
-    memcpy(i_buf, org_o_buf, org_o_len);
-    i_len = org_o_len;
+    memcpy(i_buf, org_o_buf, org_o_eaten);
+    i_len = org_o_eaten;
     from = to;
   }
 
