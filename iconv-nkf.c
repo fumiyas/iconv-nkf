@@ -95,6 +95,7 @@ iconv_nkf_putchar(int c)
   if (iconv_nkf_outbytesleft) {
     *iconv_nkf_outptr++ = c;
     iconv_nkf_outbytesleft--;
+
     if (iconv_nkf_cd->out_is_iso2022) {
       if (c == ESC) {
 	if (iconv_nkf_inprev != ESC) {
@@ -301,6 +302,18 @@ size_t iconv_nkf(
 #define inlen (iconv_nkf_inptr - iconv_nkf_inbuf)
 #define outlen (iconv_nkf_outptr - iconv_nkf_outbuf)
 
+  if (cd->in_is_iso2022) {
+    if (iconv_nkf_inpending == 3 && !memcmp(iconv_nkf_inptr - 3, "\x1B(B", 3)) {
+      iconv_nkf_inpending = 0;
+    }
+    if (outlen >= 1 && iconv_nkf_outptr[-1] == ESC) {
+      iconv_nkf_inptr -= 1;
+      iconv_nkf_outptr -= 1;
+      ret = (size_t)-1;
+      errno = EINVAL;
+    }
+  }
+
   if (cd->out_is_iso2022) {
     if (outlen >= 3 && !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
 	iconv_nkf_outptr -= 3;
@@ -308,7 +321,7 @@ size_t iconv_nkf(
     }
   }
 
-  if (iconv_nkf_inpending && (!cd->in_is_iso2022 || !input_mode == ASCII)) {
+  if (iconv_nkf_inpending) {
     iconv_nkf_inptr -= iconv_nkf_inpending;
     ret = (size_t)-1;
     errno = EINVAL;
