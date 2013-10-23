@@ -306,7 +306,7 @@ size_t iconv_nkf(
     if (iconv_nkf_inpending == 3 && !memcmp(iconv_nkf_inptr - 3, "\x1B(B", 3)) {
       iconv_nkf_inpending = 0;
     }
-    if (outlen >= 1 && iconv_nkf_outptr[-1] == ESC) {
+    if (iconv_nkf_inprev == ESC && outlen >= 1 && iconv_nkf_outptr[-1] == ESC) {
       iconv_nkf_inptr -= 1;
       iconv_nkf_outptr -= 1;
       ret = (size_t)-1;
