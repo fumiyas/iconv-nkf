@@ -12,7 +12,7 @@ void hexdump(const char *str, size_t len) {
   size_t i;
 
   for (i = 0; i < len; i++) {
-    printf("%s%02x", (i == 0 ? "" : " "), (unsigned char)str[i]);
+    printf("%s%02x", (i == 0 ? "" : (i % 10 == 0) ? "|" : " "), (unsigned char)str[i]);
   }
   puts("");
 }
