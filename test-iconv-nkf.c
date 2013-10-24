@@ -24,7 +24,7 @@ int main(void) {
     "UTF8",
     "Shift_JIS", "SJIS",
     "EUC-JP", "EUCJP",
-    "ISO-2022-JP", "ISO2022JP",
+    "ISO-2022-JP", /* FIXME "ISO2022JP", */
     "UTF-8",
     NULL
   };
