@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
@@ -65,9 +66,12 @@ void test(const char *i_str) {
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
     "UTF-8",		"ISO-2022-JP",
-    "UTF-8",		"EUC-JP",
     "UTF-8",		"Shift_JIS",
-    "UTF-8",		NULL
+    "UTF-8",		"EUC-JP",
+    "EUC-JP",		"ISO-2022-JP",
+    "EUC-JP",		"Shift_JIS",
+    "EUC-JP",		"UTF-8",
+    NULL,
   };
 
   char i_buf[8192];
