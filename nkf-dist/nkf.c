@@ -5466,7 +5466,9 @@ kanji_convert(FILE *f)
 #endif
 	return -1;
     }
+#if !defined(ICONV_NKF)
     check_bom(f);
+#endif /* !defined(ICONV_NKF) */
 
 #ifdef UTF8_INPUT_ENABLE
     if(iconv == w_iconv32){
