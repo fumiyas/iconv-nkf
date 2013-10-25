@@ -17,11 +17,51 @@ void hexdump(const char *str, size_t len) {
   puts("");
 }
 
+void test(const char *);
+
+int i, test_num = 0, test_ok = 0, test_warning = 0, test_error = 0;
+char *i_strs[] = {
+  "A",
+  "あ",
+  "\x1B",
+  "Aあ",
+  "あA",
+  "\x1B""Aあ",
+  "A\x1Bあ",
+  "Aあ\x1B",
+  "ABあ",
+  "あAB",
+  "Aあい",
+  "あいB",
+  "ABあい",
+  "あいBB",
+  "AあB",
+  "あAい",
+  "ABCDEFGあ0123456",
+  "あいうえおA１２３４５",
+  NULL
+};
+
 int main(void) {
-  int i, test = 0, test_ok = 0, test_warning = 0, test_error = 0;
+  char **i_strptr;
+
+  for (i_strptr = i_strs; *i_strptr; i_strptr++) {
+    test(*i_strptr);
+  }
+
+  printf("Test result: %s (OK=%d ERROR=%d WARNING=%d)\n",
+      test_error ? "ERROR" : "OK", test_ok, test_error, test_warning);
+
+  return test_error ? 1 : 0;
+}
+
+void test(const char *i_str) {
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
     "UTF8",
+    "Shift_JIS", "UTF-8",
+    "EUC-JP", "UTF-8",
+    "ISO-2022-JP", "UTF-8",
     "Shift_JIS", "SJIS",
     "EUC-JP", "EUCJP",
     "ISO-2022-JP", /* FIXME "ISO2022JP", */
@@ -29,9 +69,9 @@ int main(void) {
     NULL
   };
 
-  char i_buf[8192] = "ABCDEFG あいうえおかきくけこ \x1B XYZ わをん";
+  char i_buf[8192];
   char *i_ptr;
-  size_t i_len = strlen(i_buf);
+  size_t i_len;
   size_t i_left;
   size_t i_step;
 
@@ -41,7 +81,7 @@ int main(void) {
   char *org_i_ptr, *org_o_ptr;
   size_t org_i_len, org_ret;
   size_t org_i_left, org_i_eaten;
-  size_t org_o_left, org_o_eaten;
+  size_t org_o_left, org_o_eaten = 0;
 
   iconv_nkf_t nkf_cd;
   int nkf_errno;
@@ -51,12 +91,16 @@ int main(void) {
   size_t nkf_i_left, nkf_i_eaten;
   size_t nkf_o_left, nkf_o_eaten;
 
-  printf("str: ");
-  hexdump(i_buf, i_len);
+  size_t i_strlen = strlen(i_str);
+  strcpy(i_buf, i_str);
+  i_len = strlen(i_str);
 
   for (i = 0; encodings[i]; i++) {
     puts("======================================================================");
     to = encodings[i];
+    printf("str raw: %s\n", i_str);
+    printf("str hex: ");
+    hexdump(i_str, i_strlen);
 
     for (i_step = i_len; i_step > 0; i_step--) {
       puts("----------------------------------------------------------------------");
@@ -103,7 +147,7 @@ int main(void) {
 	printf("ret nkf out: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
 	  nkf_ret, nkf_i_eaten, nkf_o_eaten, nkf_errno, strerror(nkf_errno)
 	);
-	printf("Test %4d: ", ++test);
+	printf("Test %4d: ", ++test_num);
 	if (org_ret == nkf_ret && org_i_eaten == nkf_i_eaten && org_o_eaten == nkf_o_eaten && org_errno == nkf_errno) {
 	  puts("OK");
 	  test_ok++;
@@ -123,7 +167,7 @@ int main(void) {
 	hexdump(org_o_buf, org_o_eaten);
 	printf("str nkf: ");
 	hexdump(nkf_o_buf, nkf_o_eaten);
-	printf("Test %4d: ", ++test);
+	printf("Test %4d: ", ++test_num);
 
 	if (!memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten))) {
 	  if (org_o_eaten == nkf_o_eaten) {
@@ -151,10 +195,5 @@ int main(void) {
     i_len = org_o_eaten;
     from = to;
   }
-
-  printf("Test result: %s (OK=%d ERROR=%d WARNING=%d)\n",
-      test_error ? "ERROR" : "OK", test_ok, test_error, test_warning);
-
-  return test_error ? 1 : 0;
 }
 
