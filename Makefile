@@ -1,7 +1,7 @@
 BUILD_TARGETS = iconv-nkf iconv-nkf.so libiconv-nkf.so test-iconv-nkf
 
 CC = gcc
-CFLAGS = -O2 -g -Wall -fPIC $(CFLAGS_EXTRA)
+CFLAGS = -O2 -g -Wall -Wextra -fPIC $(CFLAGS_EXTRA)
 CFLAGS_PRELOADLIB = -DICONV_NKF_PRELOADLIB
 
 LDSHARED = $(CC) -shared

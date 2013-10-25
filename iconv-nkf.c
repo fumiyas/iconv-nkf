@@ -63,7 +63,7 @@ static int iconv_nkf_output_mode_prev;
 #undef iconv
 
 static nkf_char
-iconv_nkf_getc(FILE *f)
+iconv_nkf_getc(ARG_UNUSED FILE *f)
 {
   nkf_char c;
 
@@ -82,7 +82,7 @@ iconv_nkf_getc(FILE *f)
 }
 
 static nkf_char
-iconv_nkf_ungetc(nkf_char c, FILE *f)
+iconv_nkf_ungetc(nkf_char c, ARG_UNUSED FILE *f)
 {
   if (iconv_nkf_inptr > iconv_nkf_inbuf) {
     iconv_nkf_inptr--;
