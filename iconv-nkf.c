@@ -19,7 +19,7 @@
   misrepresented as being the original software.
 
   3. This notice may not be removed or altered from any source distribution.
- */
+*/
 
 #include <stdio.h>
 #include <pthread.h>
@@ -30,7 +30,12 @@
 
 #ifdef ICONV_NKF_DEBUG
 #  include <stdio.h>
-#  define DEBUG(...) fprintf(stderr, __VA_ARGS__)
+#  define DEBUG(...) \
+  do { \
+    fprintf(stderr, "%s:%4d:%s: ", __FILE__, __LINE__, __func__); \
+    fprintf(stderr, __VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+  } while (0);
 #else
 #  define DEBUG(...)
 #endif
@@ -76,11 +81,11 @@ iconv_nkf_getc(FILE *f)
     iconv_nkf_inbytesleft--;
     iconv_nkf_inpending++;
     iconv_nkf_cd->out_is_in_escape = 0;
-    DEBUG("getc: %02X\n", c);
+    DEBUG("%02X", c);
     return (int)c;
   }
 
-  DEBUG("getc: EOF\n");
+  DEBUG("EOF");
 
   return EOF;
 }
@@ -116,10 +121,10 @@ iconv_nkf_putchar(int c)
     else {
       iconv_nkf_inpending = 0;
     }
-    DEBUG("putc: %02X\n", c);
+    DEBUG("%02X", c);
   }
   else {
-    DEBUG("putc: NO LEFT BUFFER\n");
+    DEBUG("NO LEFT BUFFER");
     /* FIXME: Set error flag */
   }
 }
