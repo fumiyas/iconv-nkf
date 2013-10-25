@@ -3042,6 +3042,7 @@ nkf_state_init(void)
     nkf_state->mimeout_state = 0;
 }
 
+#ifndef ICONV_NKF
 #ifndef WIN32DLL
 static nkf_char
 std_getc(FILE *f)
@@ -3068,6 +3069,7 @@ std_putc(nkf_char c)
 	putchar(c);
 }
 #endif /*WIN32DLL*/
+#endif /* !ICONV_NKF */
 
 static nkf_char   hold_buf[HOLD_SIZE*2];
 static int             hold_count = 0;

@@ -42,15 +42,6 @@
 
 #define CONST_DISCARD(type, ptr)	((type) ((void *) (ptr)))
 
-#undef getc
-#define getc(f)         iconv_nkf_getc(f)
-
-#undef putchar
-#define putchar(c)      iconv_nkf_putchar(c)
-
-#undef TRUE
-#undef FALSE
-
 static iconv_nkf_t iconv_nkf_cd;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
@@ -61,28 +52,28 @@ static int iconv_nkf_guess_flag;
 static int iconv_nkf_errno;
 static int iconv_nkf_output_mode_prev;
 
-static int iconv_nkf_getc(FILE *f);
-static void iconv_nkf_putchar(int c);
-
 #define ICONV_NKF 1
 #define PERL_XS 1
-#define iconv iconv_x
+#define std_getc	iconv_nkf_getc
+#define std_ungetc	iconv_nkf_ungetc
+#define std_putc	iconv_nkf_putc
+#define iconv		iconv_dummy
 #include "nkf-dist/utf8tbl.c"
 #include "nkf-dist/nkf.c"
 #undef iconv
 
-static int
+static nkf_char
 iconv_nkf_getc(FILE *f)
 {
-  unsigned char c;
+  nkf_char c;
 
   if (iconv_nkf_inbytesleft) {
-    iconv_nkf_inprev = c = *iconv_nkf_inptr++;
+    iconv_nkf_inprev = c = (unsigned char)*iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
     iconv_nkf_inpending++;
     iconv_nkf_cd->out_is_in_escape = 0;
     DEBUG("%02X", c);
-    return (int)c;
+    return c;
   }
 
   DEBUG("EOF");
@@ -90,10 +81,28 @@ iconv_nkf_getc(FILE *f)
   return EOF;
 }
 
-static void
-iconv_nkf_putchar(int c)
+static nkf_char
+iconv_nkf_ungetc(nkf_char c, FILE *f)
 {
-  if (iconv_nkf_guess_flag) {
+  if (iconv_nkf_inptr > iconv_nkf_inbuf) {
+    iconv_nkf_inptr--;
+    *iconv_nkf_inptr = c;
+    // FIXME  iconv_nkf_inprev = ;
+    iconv_nkf_inbytesleft++;
+    if (iconv_nkf_inpending) {
+      iconv_nkf_inpending--;
+    }
+    // FIXME iconv_nkf_cd->out_is_in_escape = ;
+    DEBUG("%02X", c);
+  }
+
+  return c;
+}
+
+static void
+iconv_nkf_putc(nkf_char c)
+{
+  if (c == EOF || iconv_nkf_guess_flag) {
     return;
   }
 
