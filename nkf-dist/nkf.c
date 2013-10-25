@@ -356,7 +356,9 @@ static  int     no_cp932ext_f = FALSE;
 /* ignore ZERO WIDTH NO-BREAK SPACE */
 static  int     no_best_fit_chars_f = FALSE;
 static  int     input_endian = ENDIAN_BIG;
+#ifndef ICONV_NKF
 static  int     input_bom_f = FALSE;
+#endif
 static  nkf_char     unicode_subchar = '?'; /* the regular substitution character */
 static  void    (*encode_fallback)(nkf_char c) = NULL;
 static  void    w_status(struct input_code *, nkf_char);
@@ -3574,6 +3576,7 @@ h_conv(FILE *f, nkf_char c1, nkf_char c2)
     return ret;
 }
 
+#if !defined(ICONV_NKF)
 /*
  * Check and Ignore BOM
  */
@@ -3690,6 +3693,7 @@ check_bom(FILE *f)
 	break;
     }
 }
+#endif /* !defined(ICONV_NKF) */
 
 static nkf_char
 broken_getc(FILE *f)
