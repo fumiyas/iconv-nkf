@@ -39,6 +39,12 @@ char *i_strs[] = {
   "あAい",
   "ABCDEFGあ0123456",
   "あいうえおA１２３４５",
+  "ABCDEFG""\x1B\x1B""0123456",
+  "ABCDEFG""\x1B\x1B\x1B""0123456",
+  "ABCDEFG""\x1B \x1B""0123456",
+  "あいうえお""\x1B\x1B""１２３４５",
+  "あいうえお""\x1B\x1B\x1B""１２３４５",
+  "あいうえお""\x1B \x1B""１２３４５",
   NULL
 };
 
@@ -58,15 +64,10 @@ int main(void) {
 void test(const char *i_str) {
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
-    "UTF8",
-    "Shift_JIS", "UTF-8",
-    "EUC-JP", "UTF-8",
-    "ISO-2022-JP", "UTF-8",
-    "Shift_JIS", "SJIS",
-    "EUC-JP", "EUCJP",
-    "ISO-2022-JP", /* FIXME "ISO2022JP", */
-    "UTF-8",
-    NULL
+    "UTF-8",		"ISO-2022-JP",
+    "UTF-8",		"EUC-JP",
+    "UTF-8",		"Shift_JIS",
+    "UTF-8",		NULL
   };
 
   char i_buf[8192];
@@ -105,12 +106,20 @@ void test(const char *i_str) {
     for (i_step = i_len; i_step > 0; i_step--) {
       puts("----------------------------------------------------------------------");
       org_cd = iconv_open(to, from);
+      if (org_cd == (iconv_t)-1) {
+	printf("iconv_open failed: %s -> %s: %s\n", from, to, strerror(errno));
+	exit(1);
+      }
       org_i_ptr = org_i_buf;
       org_i_left = 0;
       org_o_ptr = org_o_buf;
       org_o_left = sizeof(org_o_buf);
 
       nkf_cd = iconv_nkf_open(to, from);
+      if (nkf_cd == (iconv_nkf_t)-1) {
+	printf("iconv_nkf_open failed: %s -> %s: %s\n", from, to, strerror(errno));
+	exit(1);
+      }
       nkf_i_ptr = nkf_i_buf;
       nkf_i_left = 0;
       nkf_o_ptr = nkf_o_buf;
