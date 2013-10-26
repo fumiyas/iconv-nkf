@@ -38,6 +38,7 @@ char *i_strs[] = {
   "あいBB",
   "AあB",
   "あAい",
+  "0\x1B(B1\x1B$B3",
   "ABCDEFGあ0123456",
   "あいうえおA１２３４５",
   "ABCDEFG""\x1B\x1B""0123456",

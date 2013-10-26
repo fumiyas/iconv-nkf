@@ -332,7 +332,7 @@ size_t iconv_nkf(
   }
 
   if (cd->out_is_iso2022) {
-    if (outlen >= 3 && !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
+    if (iconv_nkf_output_mode_prev != ASCII && outlen >= 3 && !memcmp(iconv_nkf_outptr - 3, "\x1B(B", 3)) {
 	iconv_nkf_outptr -= 3;
 	cd->nkf_output_mode = iconv_nkf_output_mode_prev;
     }
