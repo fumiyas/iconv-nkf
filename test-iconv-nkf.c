@@ -18,8 +18,6 @@ void hexdump(const char *str, size_t len) {
   puts("");
 }
 
-void test(const char *);
-
 int i, test_num = 0, test_ok = 0, test_warning = 0, test_error = 0;
 char *i_strs[] = {
   "A",
@@ -50,6 +48,28 @@ char *i_strs[] = {
   "あいうえお""\x1B \x1B""１２３４５",
   NULL
 };
+
+void test_assert(const char *title, int flag, int warn) {
+  printf("Test %4d: ", ++test_num);
+  if (flag) {
+    printf("OK");
+    test_ok++;
+  }
+  else if (warn) {
+    printf("WARNING");
+    test_warning++;
+  }
+  else {
+    printf("ERROR");
+    test_error++;
+  }
+  if (title) {
+    printf(": %s", title);
+  }
+  printf("\n");
+}
+
+void test(const char *);
 
 int main(void) {
   char **i_strptr;
@@ -140,7 +160,7 @@ void test(const char *i_str) {
 
 	memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
 	org_i_len = org_i_left += min(i_step, i_left);
-	printf("str org in: ");
+	printf("String org in: ");
 	hexdump(org_i_ptr, org_i_left);
 	errno = 0;
 	org_ret = iconv(org_cd, org_i_len ? &org_i_ptr : NULL, &org_i_left, &org_o_ptr, &org_o_left);
@@ -150,7 +170,7 @@ void test(const char *i_str) {
 
 	memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
 	nkf_i_len = nkf_i_left += min(i_step, i_left);
-	printf("str nkf in: ");
+	printf("String nkf in: ");
 	hexdump(nkf_i_ptr, nkf_i_left);
 	errno = 0;
 	nkf_ret = iconv_nkf(nkf_cd, nkf_i_len ? &nkf_i_ptr : NULL, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
@@ -158,54 +178,54 @@ void test(const char *i_str) {
 	nkf_i_eaten = nkf_i_ptr - nkf_i_buf;
 	nkf_o_eaten = nkf_o_ptr - nkf_o_buf;
 
-	printf("ret org out: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	printf("Result org: "
+	  "戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
 	  org_ret, org_i_eaten, org_o_eaten, org_errno, strerror(org_errno)
 	);
-	printf("ret nkf out: 戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	printf("Result nkf: "
+	  "戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
 	  nkf_ret, nkf_i_eaten, nkf_o_eaten, nkf_errno, strerror(nkf_errno)
 	);
-	printf("Test %4d: ", ++test_num);
-	if (org_ret == nkf_ret && org_i_eaten == nkf_i_eaten && org_o_eaten == nkf_o_eaten && org_errno == nkf_errno) {
-	  puts("OK");
-	  test_ok++;
-	}
-	else {
-	  if (nkf_i_len) {
-	    puts("WARNING");
-	    test_warning++;
-	  }
-	  else {
-	    puts("ERROR");
-	    test_error++;
-	  }
-	}
+	test_assert(
+	  "iconv() result: Values",
+	  (org_ret == nkf_ret && org_errno == nkf_errno &&
+	   org_i_eaten == nkf_i_eaten &&
+	   org_o_eaten == nkf_o_eaten),
+	  nkf_i_len > 0
+	);
 
-	printf("str org: ");
+	printf("String org out: ");
 	hexdump(org_o_buf, org_o_eaten);
-	printf("str nkf: ");
+	printf("String nkf out: ");
 	hexdump(nkf_o_buf, nkf_o_eaten);
-	printf("Test %4d: ", ++test_num);
 
-	if (!memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten))) {
-	  if (org_o_eaten == nkf_o_eaten) {
-	    puts("OK");
-	    test_ok++;
-	  }
-	  else {
-	    puts("WARNING");
-	    test_warning++;
-	  }
-	}
-	else {
-	  puts("ERROR");
-	  test_error++;
-	}
-
-	fflush(stdout);
+	test_assert(
+	  "iconv() result: Output string",
+	  !memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten)),
+	  0
+	);
+	test_assert(
+	  "iconv() result: Output string length",
+	  (org_o_eaten == nkf_o_eaten),
+	  1
+	);
       }
 
       iconv_close(org_cd);
       iconv_nkf_close(nkf_cd);
+
+      size_t org_o_len = org_o_ptr - org_o_ptr;
+      size_t nkf_o_len = nkf_o_ptr - nkf_o_ptr;
+      test_assert(
+	"iconv() last result: Output string",
+	!memcmp(org_o_buf, nkf_o_buf, min(org_o_len, nkf_o_len)),
+	0
+      );
+      test_assert(
+	"iconv() last result: Output string length",
+	org_o_len == nkf_o_len,
+	0
+      );
     }
 
     memcpy(i_buf, org_o_buf, org_o_eaten);

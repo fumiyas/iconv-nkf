@@ -92,7 +92,6 @@ iconv_nkf_ungetc(ARG_UNUSED nkf_char c, ARG_UNUSED FILE *f)
     if (iconv_nkf_inpending) {
       iconv_nkf_inpending--;
     }
-    // FIXME iconv_nkf_cd->out_is_in_escape = ;
     DEBUG("%02X", (unsigned char)*iconv_nkf_inptr);
   }
   else {
