@@ -84,17 +84,16 @@ iconv_nkf_getc(ARG_UNUSED FILE *f)
 }
 
 static nkf_char
-iconv_nkf_ungetc(nkf_char c, ARG_UNUSED FILE *f)
+iconv_nkf_ungetc(ARG_UNUSED nkf_char c, ARG_UNUSED FILE *f)
 {
   if (iconv_nkf_inptr > iconv_nkf_inbuf) {
     iconv_nkf_inptr--;
-    *iconv_nkf_inptr = (unsigned int)c;
     iconv_nkf_inbytesleft++;
     if (iconv_nkf_inpending) {
       iconv_nkf_inpending--;
     }
     // FIXME iconv_nkf_cd->out_is_in_escape = ;
-    DEBUG("%02X", c);
+    DEBUG("%02X", (unsigned char)*iconv_nkf_inptr);
   }
   else {
     DEBUG("NO LEFT BUFFER");
