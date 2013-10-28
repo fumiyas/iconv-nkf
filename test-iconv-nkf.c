@@ -87,14 +87,12 @@ int main(void) {
 void test(const char *i_str) {
   const char *from = "UTF-8", *to;
   const char * const encodings[] = {
-    "UTF-8",		"ISO-2022-JP",
-    "UTF-8",		"Shift_JIS",
-    "UTF-8",		"EUC-JP",
-    "EUC-JP",		"ISO-2022-JP",
-    "EUC-JP",		"Shift_JIS",
-    "Shift_JIS",	"ISO-2022-JP",
+    "EUC-JP",		"UTF-8",
+    "Shift_JIS",	"UTF-8",
+    "ISO-2022-JP",	"UTF-8",	"EUC-JP",
     "Shift_JIS",	"EUC-JP",
-    "UTF-8",
+    "ISO-2022-JP",	"EUC-JP",	"Shift_JIS",
+    "ISO-2022-JP",	"Shift_JIS",
     NULL,
   };
 
