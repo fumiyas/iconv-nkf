@@ -39,6 +39,7 @@ char *i_strs[] = {
   "AあB",
   "あAい",
   "0\x1B(B1\x1B$B3",
+  "あ\x1B(Bい\x1B$Bう",
   "ABCDEFGあ0123456",
   "あいうえおA１２３４５",
   "ABCDEFG""\x1B\x1B""0123456",
@@ -71,7 +72,9 @@ void test(const char *i_str) {
     "UTF-8",		"EUC-JP",
     "EUC-JP",		"ISO-2022-JP",
     "EUC-JP",		"Shift_JIS",
-    "EUC-JP",		"UTF-8",
+    "Shift_JIS",	"ISO-2022-JP",
+    "Shift_JIS",	"EUC-JP",
+    "UTF-8",
     NULL,
   };
 
