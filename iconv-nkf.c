@@ -46,11 +46,13 @@ static iconv_nkf_t iconv_nkf_cd;
 static char *iconv_nkf_inbuf, *iconv_nkf_outbuf;
 static char *iconv_nkf_inptr, *iconv_nkf_outptr;
 static size_t iconv_nkf_inbytesleft,iconv_nkf_outbytesleft;
-static int iconv_nkf_inprev;
 static size_t iconv_nkf_inpending;
 static int iconv_nkf_guess_flag;
 static int iconv_nkf_errno;
 static int iconv_nkf_output_mode_prev;
+
+#define iconv_nkf_inprev \
+  (iconv_nkf_inptr > iconv_nkf_inbuf ? iconv_nkf_inptr[-1] : EOF)
 
 #define ICONV_NKF 1
 #define PERL_XS 1
@@ -68,7 +70,7 @@ iconv_nkf_getc(ARG_UNUSED FILE *f)
   nkf_char c;
 
   if (iconv_nkf_inbytesleft) {
-    iconv_nkf_inprev = c = (unsigned char)*iconv_nkf_inptr++;
+    c = (unsigned char)*iconv_nkf_inptr++;
     iconv_nkf_inbytesleft--;
     iconv_nkf_inpending++;
     iconv_nkf_cd->out_is_in_escape = 0;
@@ -87,7 +89,6 @@ iconv_nkf_ungetc(nkf_char c, ARG_UNUSED FILE *f)
   if (iconv_nkf_inptr > iconv_nkf_inbuf) {
     iconv_nkf_inptr--;
     *iconv_nkf_inptr = (unsigned int)c;
-    // FIXME  iconv_nkf_inprev = ;
     iconv_nkf_inbytesleft++;
     if (iconv_nkf_inpending) {
       iconv_nkf_inpending--;
@@ -294,7 +295,6 @@ size_t iconv_nkf(
   iconv_nkf_inbytesleft = *inbytesleft;
   iconv_nkf_outbuf = iconv_nkf_outptr = *outbuf;
   iconv_nkf_outbytesleft = *outbytesleft;
-  iconv_nkf_inprev = 0;
   iconv_nkf_inpending = 0;
   iconv_nkf_guess_flag = 0;
   iconv_nkf_errno = 0;
