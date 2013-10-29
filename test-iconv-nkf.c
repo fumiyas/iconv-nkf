@@ -69,13 +69,15 @@ void test_assert(const char *title, int flag, int warn) {
   printf("\n");
 }
 
-void test(const char *);
+void test(int, char *);
+void test2(const char *, size_t, const char *, const char *);
 
 int main(void) {
-  char **i_strptr;
+  int i;
 
-  for (i_strptr = i_strs; *i_strptr; i_strptr++) {
-    test(*i_strptr);
+  for (i = 0; i_strs[i]; i++) {
+    puts("======================================================================");
+    test(i, i_strs[i]);
   }
 
   printf("Test result: %s (OK=%d ERROR=%d WARNING=%d)\n",
@@ -84,21 +86,47 @@ int main(void) {
   return test_error ? 1 : 0;
 }
 
-void test(const char *i_str) {
-  const char *from = "UTF-8", *to;
-  const char * const encodings[] = {
-    "EUC-JP",		"UTF-8",
-    "Shift_JIS",	"UTF-8",
-    "ISO-2022-JP",	"UTF-8",	"EUC-JP",
-    "Shift_JIS",	"EUC-JP",
-    "ISO-2022-JP",	"EUC-JP",	"Shift_JIS",
-    "ISO-2022-JP",	"Shift_JIS",
-    NULL,
+void test(
+  int i_index,
+  char *i_str
+) {
+  size_t i_strlen = strlen(i_str);
+  char *encodings[] = {
+    "UTF-8", "EUC-JP", "Shift_JIS", "ISO-2022-JP", NULL
   };
 
-  char i_buf[8192];
-  char *i_ptr;
-  size_t i_len;
+  int from;
+  for (from = 0; encodings[from]; from++) {
+    char i_buf[8192];
+    char *i_strptr, *i_ptr;
+    size_t i_strleft, i_left;
+
+    iconv_t cd = iconv_open(encodings[from], "UTF-8");
+    i_strptr = i_str;
+    i_strleft = i_strlen;
+    i_ptr = i_buf;
+    i_left = sizeof(i_buf);
+    iconv(cd, &i_strptr, &i_strleft, &i_ptr, &i_left);
+
+    size_t i_len = i_ptr - i_buf;
+    int to;
+    for (to = 0; encodings[to]; to++) {
+      puts("----------------------------------------------------------------------");
+      printf("String in UTF-8: %d: %s\n", i_index, i_str);
+      printf("String in UTF-8 hex: ");
+      hexdump(i_str, i_strlen);
+      test2(i_buf, i_len, encodings[from], encodings[to]);
+    }
+  }
+}
+
+void test2(
+  const char *i_buf,
+  size_t i_len,
+  const char *from,
+  const char *to
+) {
+  const char *i_ptr;
   size_t i_left;
   size_t i_step;
 
@@ -108,7 +136,7 @@ void test(const char *i_str) {
   char *org_i_ptr, *org_o_ptr;
   size_t org_i_len, org_ret;
   size_t org_i_left, org_i_eaten;
-  size_t org_o_left, org_o_eaten = 0;
+  size_t org_o_left, org_o_eaten;
 
   iconv_nkf_t nkf_cd;
   int nkf_errno;
@@ -118,117 +146,101 @@ void test(const char *i_str) {
   size_t nkf_i_left, nkf_i_eaten;
   size_t nkf_o_left, nkf_o_eaten;
 
-  size_t i_strlen = strlen(i_str);
-  strcpy(i_buf, i_str);
-  i_len = strlen(i_str);
+  for (i_step = i_len; i_step > 0; i_step--) {
+    org_cd = iconv_open(to, from);
+    if (org_cd == (iconv_t)-1) {
+      printf("iconv_open failed: %s -> %s: %s\n", from, to, strerror(errno));
+      exit(1);
+    }
+    org_i_ptr = org_i_buf;
+    org_i_left = 0;
+    org_o_ptr = org_o_buf;
+    org_o_left = sizeof(org_o_buf);
 
-  for (i = 0; encodings[i]; i++) {
-    puts("======================================================================");
-    to = encodings[i];
-    printf("str raw: %s\n", i_str);
-    printf("str hex: ");
-    hexdump(i_str, i_strlen);
+    nkf_cd = iconv_nkf_open(to, from);
+    if (nkf_cd == (iconv_nkf_t)-1) {
+      printf("iconv_nkf_open failed: %s -> %s: %s\n", from, to, strerror(errno));
+      exit(1);
+    }
+    nkf_i_ptr = nkf_i_buf;
+    nkf_i_left = 0;
+    nkf_o_ptr = nkf_o_buf;
+    nkf_o_left = sizeof(nkf_o_buf);
 
-    for (i_step = i_len; i_step > 0; i_step--) {
-      puts("----------------------------------------------------------------------");
-      org_cd = iconv_open(to, from);
-      if (org_cd == (iconv_t)-1) {
-	printf("iconv_open failed: %s -> %s: %s\n", from, to, strerror(errno));
-	exit(1);
-      }
-      org_i_ptr = org_i_buf;
-      org_i_left = 0;
-      org_o_ptr = org_o_buf;
-      org_o_left = sizeof(org_o_buf);
+    i_ptr = i_buf;
+    i_left = i_len;
+    for (; i_ptr <= i_buf + i_len; i_ptr += i_step, i_left -= min(i_step, i_left)) {
+      printf("From=%s To=%s i_len=%ld i_step=%ld\n", from, to, i_len, i_step);
 
-      nkf_cd = iconv_nkf_open(to, from);
-      if (nkf_cd == (iconv_nkf_t)-1) {
-	printf("iconv_nkf_open failed: %s -> %s: %s\n", from, to, strerror(errno));
-	exit(1);
-      }
-      nkf_i_ptr = nkf_i_buf;
-      nkf_i_left = 0;
-      nkf_o_ptr = nkf_o_buf;
-      nkf_o_left = sizeof(nkf_o_buf);
+      memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
+      org_i_len = org_i_left += min(i_step, i_left);
+      printf("String org in: ");
+      hexdump(org_i_ptr, org_i_left);
+      errno = 0;
+      org_ret = iconv(org_cd, org_i_len ? &org_i_ptr : NULL, &org_i_left, &org_o_ptr, &org_o_left);
+      org_errno = errno;
+      org_i_eaten = org_i_ptr - org_i_buf;
+      org_o_eaten = org_o_ptr - org_o_buf;
 
-      i_ptr = i_buf;
-      i_left = i_len;
-      for (; i_ptr <= i_buf + i_len; i_ptr += i_step, i_left -= min(i_step, i_left)) {
-	printf("i_len=%ld i_step=%ld from=%s to=%s\n", i_len, i_step, from, to);
+      memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
+      nkf_i_len = nkf_i_left += min(i_step, i_left);
+      printf("String nkf in: ");
+      hexdump(nkf_i_ptr, nkf_i_left);
+      errno = 0;
+      nkf_ret = iconv_nkf(nkf_cd, nkf_i_len ? &nkf_i_ptr : NULL, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
+      nkf_errno = errno;
+      nkf_i_eaten = nkf_i_ptr - nkf_i_buf;
+      nkf_o_eaten = nkf_o_ptr - nkf_o_buf;
 
-	memcpy(org_i_ptr + org_i_left, i_ptr, min(i_step, i_left));
-	org_i_len = org_i_left += min(i_step, i_left);
-	printf("String org in: ");
-	hexdump(org_i_ptr, org_i_left);
-	errno = 0;
-	org_ret = iconv(org_cd, org_i_len ? &org_i_ptr : NULL, &org_i_left, &org_o_ptr, &org_o_left);
-	org_errno = errno;
-	org_i_eaten = org_i_ptr - org_i_buf;
-	org_o_eaten = org_o_ptr - org_o_buf;
-
-	memcpy(nkf_i_ptr + nkf_i_left, i_ptr, min(i_step, i_left));
-	nkf_i_len = nkf_i_left += min(i_step, i_left);
-	printf("String nkf in: ");
-	hexdump(nkf_i_ptr, nkf_i_left);
-	errno = 0;
-	nkf_ret = iconv_nkf(nkf_cd, nkf_i_len ? &nkf_i_ptr : NULL, &nkf_i_left, &nkf_o_ptr, &nkf_o_left);
-	nkf_errno = errno;
-	nkf_i_eaten = nkf_i_ptr - nkf_i_buf;
-	nkf_o_eaten = nkf_o_ptr - nkf_o_buf;
-
-	printf("Result org: "
-	  "戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-	  org_ret, org_i_eaten, org_o_eaten, org_errno, strerror(org_errno)
-	);
-	printf("Result nkf: "
-	  "戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
-	  nkf_ret, nkf_i_eaten, nkf_o_eaten, nkf_errno, strerror(nkf_errno)
-	);
-	test_assert(
-	  "iconv() result: Values",
-	  (org_ret == nkf_ret && org_errno == nkf_errno &&
-	   org_i_eaten == nkf_i_eaten &&
-	   org_o_eaten == nkf_o_eaten),
-	  nkf_i_len > 0
-	);
-
-	printf("String org out: ");
-	hexdump(org_o_buf, org_o_eaten);
-	printf("String nkf out: ");
-	hexdump(nkf_o_buf, nkf_o_eaten);
-
-	test_assert(
-	  "iconv() result: Output string",
-	  !memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten)),
-	  0
-	);
-	test_assert(
-	  "iconv() result: Output string length",
-	  (org_o_eaten == nkf_o_eaten),
-	  1
-	);
-      }
-
-      iconv_close(org_cd);
-      iconv_nkf_close(nkf_cd);
-
-      size_t org_o_len = org_o_ptr - org_o_ptr;
-      size_t nkf_o_len = nkf_o_ptr - nkf_o_ptr;
+      printf("Result org: "
+	"戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	org_ret, org_i_eaten, org_o_eaten, org_errno, strerror(org_errno)
+      );
+      printf("Result nkf: "
+	"戻値=%2ld, 入力元消費=%ld, 出力先消費=%ld, errno=%d (%s)\n",
+	nkf_ret, nkf_i_eaten, nkf_o_eaten, nkf_errno, strerror(nkf_errno)
+      );
       test_assert(
-	"iconv() last result: Output string",
-	!memcmp(org_o_buf, nkf_o_buf, min(org_o_len, nkf_o_len)),
+	"iconv() result: Values",
+	(org_ret == nkf_ret && org_errno == nkf_errno &&
+	  org_i_eaten == nkf_i_eaten &&
+	  org_o_eaten == nkf_o_eaten),
+	nkf_i_len > 0
+      );
+
+      printf("String org out: ");
+      hexdump(org_o_buf, org_o_eaten);
+      printf("String nkf out: ");
+      hexdump(nkf_o_buf, nkf_o_eaten);
+
+      test_assert(
+	"iconv() result: Output string",
+	!memcmp(org_o_buf, nkf_o_buf, min(org_o_eaten, nkf_o_eaten)),
 	0
       );
       test_assert(
-	"iconv() last result: Output string length",
-	org_o_len == nkf_o_len,
-	0
+	"iconv() result: Output string length",
+	(org_o_eaten == nkf_o_eaten),
+	1
       );
     }
 
-    memcpy(i_buf, org_o_buf, org_o_eaten);
-    i_len = org_o_eaten;
-    from = to;
+    iconv_close(org_cd);
+    iconv_nkf_close(nkf_cd);
+
+    size_t org_o_len = org_o_ptr - org_o_ptr;
+    size_t nkf_o_len = nkf_o_ptr - nkf_o_ptr;
+    printf("From=%s To=%s i_len=%ld i_step=%ld\n", from, to, i_len, i_step);
+    test_assert(
+      "iconv() last result: Output string",
+      !memcmp(org_o_buf, nkf_o_buf, min(org_o_len, nkf_o_len)),
+      0
+    );
+    test_assert(
+      "iconv() last result: Output string length",
+      org_o_len == nkf_o_len,
+      0
+    );
   }
 }
 
