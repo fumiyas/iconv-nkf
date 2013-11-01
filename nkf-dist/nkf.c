@@ -6204,9 +6204,10 @@ kanji_convert(FILE *f)
 			SKIP;
 		    }
 		    else {
+			i_ungetc(c1, f);
+			i_ungetc('$', f);
 			(*oconv)(0, ESC);
-			(*oconv)(0, '$');
-			SEND;
+			SKIP;
 		    }
 		}
 		else {
