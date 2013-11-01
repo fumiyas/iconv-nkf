@@ -111,6 +111,10 @@ void test(
     size_t i_len = i_ptr - i_buf;
     int to;
     for (to = 0; encodings[to]; to++) {
+      if (!strcmp(encodings[from], "ISO-2022-JP") &&
+	  !strcmp(encodings[to], "ISO-2022-JP")) {
+	continue;
+      }
       puts("----------------------------------------------------------------------");
       printf("String in UTF-8: %d: %s\n", i_index, i_str);
       printf("String in UTF-8 hex: ");
